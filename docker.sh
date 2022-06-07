@@ -1,4 +1,5 @@
 #!/bin/bash
+
 properties='{
       "management": {
         "endpoints": {
@@ -16,7 +17,10 @@ properties='{
                 "users": "casuser::Mellon,casadmin::Mellon"
             },
             "attribute-repository": {
-                "stub": {
+		"core": {
+			"default-attributes-to-release": [ "first-name", "last-name", "email" ]
+		},
+  	        "stub": {
                     "attributes": {
                         "cn": "CAS",
                         "display-name": "Apereo CAS",
@@ -24,8 +28,10 @@ properties='{
                         "first-name": "Apereo",
                         "last-name": "CAS",
                         "email": "lee@01talent.com"
-                    }
-                }
+                    },
+		    "id": "Static",
+		    "order": "0"
+		}
             }
         },
         "events": {
@@ -83,7 +89,7 @@ echo -e "Mapping CAS keystore in Docker container to ${CAS_KEYSTORE}"
 docker run --rm -d \
   --mount type=bind,source="${CAS_KEYSTORE}",target=/etc/cas/thekeystore \
   -e SPRING_APPLICATION_JSON="${properties}" \
-  -p 8444:8443 --name casserver apereo/cas:6.5.0
+  -p 8444:8443 --name casserver apereo/cas:6.4.0
 
 docker logs -f casserver &
 echo -e "Waiting for CAS..."
