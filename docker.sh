@@ -1,6 +1,39 @@
 #!/bin/bash
 
-properties='{
+### SERVER CONFIG ###
+# Name of the server / container
+cas_server_name='cas_server_demo'
+
+# Server version (offical)
+cas_server_version ='6.4.0'
+
+# Server FQDN and service port
+cas_server_url='cas.example.org'
+cas_server_port='8443'
+
+# Java KeyStore location for your server
+cas_server_keystore='/root/demo_cas_server/certs/demo_server.jks'
+
+### USER CONFIG ### 
+# Default user credentials
+cas_user_name_default='casuser'
+cas_user_password_default='Mellon'
+
+# Misc user credentials
+cas_user_name_misc='casadmin'
+cas_user_password_misc='Mellon'
+
+### ATTRIBUTE CONFIG ###
+cas_attrib_cn= 'CAS'
+cas_attrib_display_name='Apereo CAS'
+cas_attrib_uid='casuser'
+cas_attrib_first_name='Apereo'
+cas_attrib_last_name='CAS'
+cas_attrib_email='cas.user@0example.org'
+
+### BEGIN: DO NOT EDIT ###
+# General Configuration of the CAS server
+cas_server_configs='{
       "management": {
         "endpoints": {
             "enabled-by-default": true,
@@ -11,27 +44,28 @@ properties='{
             }
         }
     },
+    "logging":{
+        "config": "/etc/cas/config/log4j2.xml"
+    },
     "cas": {
         "authn": {
             "accept": {
-                "users": "casuser::Mellon,casadmin::Mellon"
+                "users": "'${cas_user_name_default}'::'${cas_user_password_default}','${cas_user_name_misc}'::'${cas_user_password_misc}'"
             },
             "attribute-repository": {
-		"core": {
-			"default-attributes-to-release": [ "first-name", "last-name", "email" ]
-		},
-  	        "stub": {
+                "core": {
+                        "default-attributes-to-release": [ "first-name", "last-name", "email" ]
+                },
+                "stub": {
                     "attributes": {
-                        "cn": "CAS",
-                        "display-name": "Apereo CAS",
-                        "uid": "casuser",
-                        "first-name": "Apereo",
-                        "last-name": "CAS",
-                        "email": "lee@01talent.com"
-                    },
-		    "id": "Static",
-		    "order": "0"
-		}
+                        "cn": "'${cas_attrib_cn}'",
+                        "display-name": "'${cas_attrib_display_name}'",
+                        "uid": "'${cas_attrib_uid}'",
+                        "first-name": "'${cas_attrib_first_name}'",
+                        "last-name": "'${cas_attrib_last_name}'",
+                        "email": "'${cas_attrib_email}'"
+                    }
+                }
             }
         },
         "events": {
@@ -49,8 +83,8 @@ properties='{
             }
         },
         "server": {
-            "name": "https://localhost:8444",
-            "prefix": "https://localhost:8444/cas",
+            "name": "https://'${cas_server_url}':'${cas_server_port}'",
+            "prefix": "https://'${cas_server_url}':'${cas_server_port}'/cas",
             "tomcat": {
                 "http": {
                     "enabled": false
@@ -64,38 +98,27 @@ properties='{
         }
     }
 }'
-properties=$(echo "$properties" | tr -d '[:space:]')
-echo -e "***************************\nCAS properties\n***************************"
-echo "${properties}" | jq
+### END: DO NOT EDIT ###
+cas_server_configs=$(echo "$cas_server_configs" | tr -d '[:space:]')
+echo -e "***************************\nCAS Server Configurations\n***************************"
+echo "${cas_server_configs}" | jq
 
-if [[ -z "${CAS_KEYSTORE}" ]] ; then
-  keystore="$PWD"/thekeystore
-  echo -e "Generating keystore for CAS Server at ${keystore}"
-  dname="${dname:-CN=localhost,OU=Example,OU=Org,C=US}"
-  subjectAltName="${subjectAltName:-dns:example.org,dns:localhost,ip:127.0.0.1}"
-  [ -f "${keystore}" ] && rm "${keystore}"
-  keytool -genkey -noprompt -alias cas -keyalg RSA \
-    -keypass changeit -storepass changeit \
-    -keystore "${keystore}" -dname "${dname}"
-  [ -f "${keystore}" ] && echo "Created ${keystore}"
-  export CAS_KEYSTORE="${keystore}"
-else
-  echo -e "Found existing CAS keystore at ${CAS_KEYSTORE}"
-fi
-
-docker stop casserver || true && docker rm casserver || true
-echo -e "Mapping CAS keystore in Docker container to ${CAS_KEYSTORE}"
+docker stop ${cas_server_name} || true && docker rm ${cas_server_name} || true
+echo -e "Mapping CAS keystore in Docker container to ${cas_server_keystore}\n"
 
 docker run --rm -d \
-  --mount type=bind,source="${CAS_KEYSTORE}",target=/etc/cas/thekeystore \
-  -e SPRING_APPLICATION_JSON="${properties}" \
-  -p 8444:8443 --name casserver apereo/cas:6.4.0
+  --mount type=bind,source="${cas_server_keystore}",target=/etc/cas/thekeystore \
+  -e SPRING_APPLICATION_JSON="${cas_server_configs}" \
+  -p ${cas_server_port}:8443 --name ${cas_server_name} apereo/cas:${cas_server_version}
 
-docker logs -f casserver &
-echo -e "Waiting for CAS..."
-until curl -k -L --output /dev/null --silent --fail https://localhost:8444/cas/login; do
+docker logs ${cas_server_name} &
+echo -e "Waiting for ${cas_server_name} to load..."
+until curl -k -L --output /dev/null --silent --fail https://${cas_server_url}:${cas_server_port}/cas/login; do
   echo -n .
   sleep 1
 done
-echo -e "\nCAS Server is running on port 8444"
-echo -e "\n\nReady!"
+
+echo -e "\nCAS Server (${cas_server_name}) is running on port ${cas_server_port}\n"
+echo -e "\nPlease use the following URL to access the login page:\n"
+echo -e "https://${cas_server_url}:${cas_server_port}/cas/login"
+echo -e "\n\n Username: ${cas_user_name_default} and Password: ${cas_user_password_default}"
