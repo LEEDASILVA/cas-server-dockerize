@@ -107,15 +107,15 @@ docker stop ${cas_server_name} || true && docker rm ${cas_server_name} || true
 echo -e "Mapping CAS keystore in Docker container to ${cas_server_keystore}\n"
 
 docker run --rm -d \
-    --mount type=bind,source="${cas_server_keystore}",target=/etc/cas/thekeystore \
-    -e SPRING_APPLICATION_JSON="${cas_server_configs}" \
-    -p ${cas_server_port}:8443 --name ${cas_server_name} apereo/cas:${cas_server_version}
+  --mount type=bind,source="${cas_server_keystore}",target=/etc/cas/thekeystore \
+  -e SPRING_APPLICATION_JSON="${cas_server_configs}" \
+  -p ${cas_server_port}:8443 --name ${cas_server_name} apereo/cas:${cas_server_version}
 
 docker logs ${cas_server_name} &
 echo -e "Waiting for ${cas_server_name} to load..."
 until curl -k -L --output /dev/null --silent --fail https://${cas_server_url}:${cas_server_port}/cas/login; do
-    echo -n .
-    sleep 1
+  echo -n .
+  sleep 1
 done
 
 echo -e "\nCAS Server (${cas_server_name}) is running on port ${cas_server_port}\n"
